@@ -41,10 +41,16 @@ class Element(MutableMapping):
             self.parent_element.add_child_element(self)
 
     def __repr__(self):
-        """Interal string represation of this object, for debugging purposes."""
+        """
+        Internal string representation of this object, for debugging purposes.
+        """
         return "{classname}({level}, {tag!r}{id}{value}{children})".format(
-            classname=self.__class__.__name__, level=self.level, tag=self.tag, id=(", " + repr(self.id) if self.id else ""),
-            value=(", " + repr(self.value) if self.value else ""), children=(", " + repr(self.child_elements) if len(self.child_elements) > 0 else ""))
+            classname=self.__class__.__name__,
+            level=self.level,
+            tag=self.tag,
+            id=(", " + repr(self.id) if self.id else ""),
+            value=(", " + repr(self.value) if self.value else ""),
+            children=(", " + repr(self.child_elements) if len(self.child_elements) > 0 else ""))
 
     def __getitem__(self, key):
         """
@@ -77,7 +83,8 @@ class Element(MutableMapping):
 
     def __contains__(self, key):
         """
-        Return True iff there is at least one child element with this tag, False otherwise.
+        Return True iff there is at least one child element with this tag,
+        False otherwise.
 
         :param str key: Tag to look for.
         """
@@ -120,7 +127,10 @@ class Element(MutableMapping):
         return [c for c in self.child_elements if c.tag == tag]
 
     def set_levels_downward(self):
-        """Set all :py:attr:`level` attributes for all child elements recursively, based on the :py:attr:`level` for this object."""
+        """
+        Set all :py:attr:`level` attributes for all child elements
+        recursively, based on the :py:attr:`level` for this object.
+        """
         if not isinstance(self.level, numbers.Integral):
             raise TypeError(self.level)
         for c in self.child_elements:
@@ -134,7 +144,11 @@ class Element(MutableMapping):
 
         :rtype: iterator over string
         """
-        line = u"{level}{id} {tag}{value}".format(level=self.level, id=(" " + self.id if self.id else ""), tag=self.tag, value=(" " + self.value if self.value else ""))
+        line = u"{level}{id} {tag}{value}".format(
+            level=self.level,
+            id=(" " + self.id if self.id else ""),
+            tag=self.tag,
+            value=(" " + self.value if self.value else ""))
         yield line
         for child in self.child_elements:
             for line in child.gedcom_lines():
@@ -146,4 +160,3 @@ class Element(MutableMapping):
             return None
         else:
             return self['NOTE'].full_text
-

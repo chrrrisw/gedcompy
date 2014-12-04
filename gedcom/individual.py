@@ -41,14 +41,7 @@ class Individual(Element):
             # Don't assume it's the first
             for name in name_tag:
 
-                # I'd like an implementation of get() here,
-                # rather than relying on an exception.
-                try:
-                    name_type = name['TYPE']
-                except IndexError:
-                    name_type = None
-
-                if name_type is not None:
+                if 'TYPE' in name:
                     pass
                 else:
                     preferred_name = name
@@ -81,14 +74,7 @@ class Individual(Element):
             # We have more than one name, get the aka names
             for name in name_tag:
 
-                # I'd like an implementation of get() here,
-                # rather than relying on an exception.
-                try:
-                    name_type = name['TYPE']
-                except IndexError:
-                    name_type = None
-
-                if name_type is not None and name_type.value.lower() == 'aka':
+                if 'TYPE' in name and name['TYPE'].value.lower() == 'aka':
                     if name.value in ('', None):
                         first = name['GIVN'].value
                         last = name['SURN'].value
@@ -135,7 +121,8 @@ class Individual(Element):
     @property
     def father(self):
         """
-        Calculate and return the individual represenating the father of this person.
+        Calculate and return the individual represenating the father of
+        this person.
 
         Returns `None` if none found.
 
@@ -154,7 +141,8 @@ class Individual(Element):
     @property
     def mother(self):
         """
-        Calculate and return the individual represenating the mother of this person.
+        Calculate and return the individual represenating the mother of
+        this person.
 
         Returns `None` if none found.
 
