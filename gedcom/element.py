@@ -6,7 +6,7 @@ from collections import MutableMapping
 class Element(MutableMapping):
 
     """
-    Generic represetation for a GEDCOM element.
+    Generic representation for a GEDCOM element.
 
     Can be used as is, or subclassed for specific functionality.
     """
@@ -71,9 +71,11 @@ class Element(MutableMapping):
 
     def __setitem__(self, key, value):
         print('Setting {} to {}'.format(key, value))
+        raise NotImplementedError()
 
     def __delitem__(self, key):
         print('Deleting {}'.format(key))
+        raise NotImplementedError()
 
     def __len__(self):
         return len(self.child_elements)

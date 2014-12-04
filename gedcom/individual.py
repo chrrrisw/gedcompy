@@ -41,9 +41,7 @@ class Individual(Element):
             # Don't assume it's the first
             for name in name_tag:
 
-                if 'TYPE' in name:
-                    pass
-                else:
+                if 'TYPE' not in name:
                     preferred_name = name
                     break
 
