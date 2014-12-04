@@ -343,6 +343,22 @@ def register_tag(tag):
         return klass
     return classdecorator
 
+def name_tuple_from_name(name):
+    if name.value in ('', None):
+        first = name['GIVN'].value
+        last = name['SURN'].value
+    elif "/" in name.value:
+        try:
+            first, last, dud = name.value.split("/", 3)
+        except ValueError:
+            print (name.value)
+            raise
+        first = first.strip()
+        last = last.strip()
+    else:
+        first = name.value
+        last = None
+    return first, last
 
 @register_tag("INDI")
 class Individual(Element):
@@ -392,15 +408,7 @@ class Individual(Element):
             # We've only one name
             preferred_name = name_tag
 
-        if preferred_name.value in ('', None):
-            first = preferred_name['GIVN'].value
-            last = preferred_name['SURN'].value
-        else:
-            first, last, dud = preferred_name.value.split("/")
-            first = first.strip()
-            last = last.strip()
-
-        return first, last
+        return name_tuple_from_name(preferred_name)
 
     @property
     def aka(self):
@@ -416,14 +424,7 @@ class Individual(Element):
             for name in name_tag:
 
                 if 'TYPE' in name and name['TYPE'].value.lower() == 'aka':
-                    if name.value in ('', None):
-                        first = name['GIVN'].value
-                        last = name['SURN'].value
-                    else:
-                        first, last, dud = name.value.split("/")
-                        first = first.strip()
-                        last = last.strip()
-                    aka_list.append((first, last))
+                    aka_list.append(name_tuple_from_name(name))
 
         return aka_list
 
