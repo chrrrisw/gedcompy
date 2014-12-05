@@ -245,17 +245,10 @@ class Element(object):
         Get the child element that has ``key`` as a tag.
 
         :param string key: tag name of child element you want
-        :raises IndexError: If there are no child elements with this tag
-        :returns: Element
-        :rtype: Element (or subclass)
+        :returns: list of Element that match the key
+        :rtype: list
         """
-        children = [c for c in self.child_elements if c.tag == key]
-        if len(children) == 0:
-            raise IndexError(key)
-        elif len(children) == 1:
-            return children[0]
-        elif len(children) > 1:
-            return children
+        return [c for c in self.child_elements if c.tag == key]
 
     def __contains__(self, key):
         """
@@ -291,16 +284,6 @@ class Element(object):
         """
         return self.gedcom_file[other_id]
 
-    def get_list(self, tag):
-        """
-        Return a list of all child elements that have this tag.
-
-        :param str tag: Tag to search for (e.g. 'DATE')
-        :returns: list of any child nodes that have this tag
-        :rtype: list
-        """
-        return [c for c in self.child_elements if c.tag == tag]
-
     def set_levels_downward(self):
         """Set all :py:attr:`level` attributes for all child elements recursively, based on the :py:attr:`level` for this object."""
         if not isinstance(self.level, numbers.Integral):
@@ -316,7 +299,6 @@ class Element(object):
 
         :rtype: iterator over string
         """
-        line_format = re.compile("^(?P<level>[0-9]+) ((?P<id>@[a-zA-Z0-9]+@) )?(?P<tag>[A-Z]+)( (?P<value>.*))?$")
         line = u"{level}{id} {tag}{value}".format(level=self.level, id=(" " + self.id if self.id else ""), tag=self.tag, value=(" " + self.value if self.value else ""))
         yield line
         for child in self.child_elements:
@@ -324,11 +306,11 @@ class Element(object):
                 yield line
 
     @property
-    def note(self):
+    def notes(self):
         if 'NOTE' not in self:
-            return None
+            return []
         else:
-            return self['NOTE'].full_text
+            return [self.get_by_id(note.value) for note in self['NOTE']]
 
 
 tags_to_classes = {}
@@ -343,22 +325,24 @@ def register_tag(tag):
         return klass
     return classdecorator
 
+
 def name_tuple_from_name(name):
     if name.value in ('', None):
-        first = name['GIVN'].value
-        last = name['SURN'].value
+        first = name['GIVN'][0].value
+        last = name['SURN'][0].value
     elif "/" in name.value:
-        try:
-            first, last, dud = name.value.split("/", 3)
-        except ValueError:
-            print (name.value)
-            raise
-        first = first.strip()
-        last = last.strip()
+        split_name = name.value.split("/")
+        if len(split_name) != 3:
+            first = name.value
+            last = None
+        else:
+            first = split_name[0].strip()
+            last = split_name[1].strip()
     else:
         first = name.value
         last = None
     return first, last
+
 
 @register_tag("INDI")
 class Individual(Element):
@@ -375,9 +359,9 @@ class Individual(Element):
         :returns: List of Individual's
         """
         if 'FAMC' in self:
-            family_as_child_id = self['FAMC'].value
+            family_as_child_id = self['FAMC'][0].value
             family = self.get_by_id(family_as_child_id)
-            if not any(child.value == self.id for child in family.get_list("CHIL")):
+            if not any(child.value == self.id for child in family["CHIL"]):
                 # raise Exception("Invalid family", family, self)
                 pass
             parents = family.partners
@@ -393,20 +377,15 @@ class Individual(Element):
 
         :returns: (firstname, lastname)
         """
-        name_tag = self['NAME']
+        names = self['NAME']
 
-        if isinstance(name_tag, list):
-            # We have more than one name, get the preferred name
-            # Don't assume it's the first
-            for name in name_tag:
+        # Get the preferred name
+        # Don't assume it's the first
+        for name in names:
 
-                if 'TYPE' not in name:
-                    preferred_name = name
-                    break
-
-        else:
-            # We've only one name
-            preferred_name = name_tag
+            if 'TYPE' not in name:
+                preferred_name = name
+                break
 
         return name_tuple_from_name(preferred_name)
 
@@ -417,26 +396,24 @@ class Individual(Element):
         '''
 
         aka_list = []
-        name_tag = self['NAME']
+        names = self['NAME']
 
-        if isinstance(name_tag, list):
-            # We have more than one name, get the aka names
-            for name in name_tag:
-
-                if 'TYPE' in name and name['TYPE'].value.lower() == 'aka':
-                    aka_list.append(name_tuple_from_name(name))
+        # Get the aka names
+        for name in names:
+            if 'TYPE' in name and name['TYPE'][0].value.lower() == 'aka':
+                aka_list.append(name_tuple_from_name(name))
 
         return aka_list
 
     @property
     def birth(self):
         """Class representing the birth of this person."""
-        return self['BIRT']
+        return self['BIRT'][0]
 
     @property
     def death(self):
         """Class representing the death of this person."""
-        return self['DEAT']
+        return self['DEAT'][0]
 
     @property
     def sex(self):
@@ -447,7 +424,7 @@ class Individual(Element):
 
         :rtype: str
         """
-        return self['SEX'].value
+        return self['SEX'][0].value
 
     @property
     def gender(self):
@@ -458,12 +435,12 @@ class Individual(Element):
 
         :rtype: str
         """
-        return self['SEX'].value
+        return self['SEX'][0].value
 
     @property
     def father(self):
         """
-        Calculate and return the individual represenating the father of this person.
+        Calculate and return the individual representing the father of this person.
 
         Returns `None` if none found.
 
@@ -520,14 +497,14 @@ class Individual(Element):
             raise TypeError("Currently only support M or F")
         try:
             sex_node = self['SEX']
-            sex_node.value = sex
+            sex_node[0].value = sex
         except IndexError:
             self.add_child_element(self.gedcom_file.element("SEX", value=sex))
 
     @property
     def title(self):
         try:
-            return self['TITL'].value
+            return self['TITL'][0].value
         except:
             return None
 
@@ -543,7 +520,7 @@ class Family(Element):
         Return list of partners in this marriage. all HUSB/WIFE child elements. Not dereferenced
         :rtype: list of Husband or Wives
         """
-        return self.get_list("HUSB") + self.get_list("WIFE")
+        return self["HUSB"] + self["WIFE"]
 
 
 class Spouse(Element):
@@ -590,7 +567,7 @@ class Event(Element):
         :rtype: string
         :raises KeyError: if there is no DATE sub-element
         """
-        return self['DATE'].value
+        return self['DATE'][0].value
 
     @property
     def place(self):
@@ -601,7 +578,7 @@ class Event(Element):
         :rtype: string
         :raises KeyError: if there is no PLAC sub-element
         """
-        return self['PLAC'].value
+        return self['PLAC'][0].value
 
 
 @register_tag("BIRT")
@@ -635,14 +612,14 @@ class Note(Element):
 
     @property
     def full_text(self):
-        result = "" + self.value or ''
+        result = '' + (self.value or '')
 
         for cons in self.child_elements:
             if cons.tag == 'CONT':
                 result += "\n"
-                result += cons.value or ''
+                result += (cons.value or '')
             elif cons.tag == 'CONC':
-                result += cons.value or ''
+                result += (cons.value or '')
             else:
                 raise ValueError("Full text can only consist of CONS and CONT")
 
