@@ -371,6 +371,21 @@ class Individual(Element):
             return []
 
     @property
+    def spouses(self):
+        '''
+        Return list of spouses of this person.
+        '''
+        spouses = []
+        if 'FAMS' in self:
+            family_references = self['FAMS']
+            for reference in family_references:
+                family = self.get_by_id(reference.value)
+                for partner in family.partners:
+                    if partner.value != self.id:
+                        spouses.append(partner)
+        return spouses
+
+    @property
     def name(self):
         """
         Return this person's name.
