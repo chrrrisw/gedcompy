@@ -48,15 +48,15 @@ class GedcomFile(object):
         """
         if element.level is None:
             # Need to figure out an element
-            if not (isinstance(element, Individual) or isinstance(element, Family)):
+            if not (isinstance(element, Individual) or isinstance(element, Family) or element.tag in ['INDI', 'FAM']):
                 raise TypeError()
             element.level = 0
             element.set_levels_downward()
 
             # create pointer
-            if isinstance(element, Individual):
+            if isinstance(element, Individual) or element.tag == 'INDI':
                 prefix = 'I'
-            elif isinstance(element, Family):
+            elif isinstance(element, Family) or element.tag == 'FAM':
                 prefix = 'F'
             else:
                 raise NotImplementedError()
@@ -126,7 +126,7 @@ class GedcomFile(object):
 
     def save(self, fileout):
         """
-        Saves the contents of this GEDCOM file to specified filename or file-like object.
+        Save the contents of this GEDCOM file to specified filename or file-like object.
 
         :param fileout: Filename or open file-like object to save this to.
         :raises Exception: if the filename exists
@@ -136,12 +136,12 @@ class GedcomFile(object):
                 # TODO better exception
                 raise Exception("File exists")
             else:
-                with open(fileout, "w") as fp:
+                with open(fileout, "wb") as fp:
                     return self.save(fp)
 
         for line in self.gedcom_lines():
             fileout.write(line.encode("utf8"))
-            fileout.write("\n")
+            fileout.write("\n".encode("utf8"))
 
     def ensure_header_trailer(self):
         """
@@ -171,7 +171,7 @@ class GedcomFile(object):
 
     def ensure_levels(self):
         """
-        Ensures that the levels for all elements in this file are sensible.
+        Ensure that the levels for all elements in this file are sensible.
 
         Sets the :py:attr:`Element.level` of all root elements to 0, and calls
         :py:meth:`Element.set_levels_downward` on each one.
@@ -183,6 +183,7 @@ class GedcomFile(object):
     def element(self, tag, **kwargs):
         """
         Return a new Element that is in this file.
+
         :param str tag: tag name for this object
         :param **kwargs: Passed to Element constructor
         :rtype: Element or subclass based on `tag`
@@ -191,10 +192,16 @@ class GedcomFile(object):
         return klass(gedcom_file=self, tag=tag, **kwargs)
 
     def individual(self, **kwargs):
-        return self.element("INDI", **kwargs)
+        """Create and return an Individual in this file."""
+        new_element = self.element("INDI", **kwargs)
+        self.add_element(new_element)
+        return new_element
 
     def family(self, **kwargs):
-        return self.element("FAM", **kwargs)
+        """Create and return a Family that is in this file."""
+        new_element = self.element("FAM", **kwargs)
+        self.add_element(new_element)
+        return new_element
 
 
 class Element(object):
@@ -307,6 +314,11 @@ class Element(object):
 
     @property
     def notes(self):
+        """
+        Return a list of note texts for this Element.
+
+        Return empty list if there is no Note.
+        """
         if 'NOTE' not in self:
             return []
         else:
@@ -406,10 +418,7 @@ class Individual(Element):
 
     @property
     def aka(self):
-        '''
-        Return a list of 'also known as' names.
-        '''
-
+        """Return a list of 'also known as' names."""
         aka_list = []
         names = self['NAME']
 
@@ -518,6 +527,7 @@ class Individual(Element):
 
     @property
     def title(self):
+        """Return the value of the Title (TITL) of this person, or None if no title."""
         try:
             return self['TITL'][0].value
         except:
@@ -532,7 +542,8 @@ class Family(Element):
     @property
     def partners(self):
         """
-        Return list of partners in this marriage. all HUSB/WIFE child elements. Not dereferenced
+        Return list of partners in this marriage. all HUSB/WIFE child elements. Not dereferenced.
+
         :rtype: list of Husband or Wives
         """
         return self["HUSB"] + self["WIFE"]
@@ -627,7 +638,14 @@ class Note(Element):
 
     @property
     def full_text(self):
-        result = '' + (self.value or '')
+        """
+        Return the full text of this note.
+
+        Internally, notes are stores across many child nodes, with child
+        CONT/CONS child nodes that store the other lines. This method assembles
+        these elements into one continuusous string.
+        """
+        result = "" + (self.value or '')
 
         for cons in self.child_elements:
             if cons.tag == 'CONT':
@@ -643,7 +661,8 @@ class Note(Element):
 
 def class_for_tag(tag):
     """
-    Return the class object for this `tag`
+    Return the class object for this `tag`.
+
     :param str tag: tag (e.g. INDI)
     :rtype: class (Element or something that's a subclass)
     """
